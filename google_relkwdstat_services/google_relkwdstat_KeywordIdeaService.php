@@ -21,9 +21,9 @@ class KeywordIdeaService
         $tokenUrl = 'https://oauth2.googleapis.com/token';
         
         $postData = [
-            'client_id' => $this->config['client_id'],
-            'client_secret' => $this->config['client_secret'],
-            'refresh_token' => $this->config['refresh_token'],
+            'client_id' => $this->config['google_ads_client_id'],
+            'client_secret' => $this->config['google_ads_client_secret'],
+            'refresh_token' => $this->config['google_ads_refresh_token'],
             'grant_type' => 'refresh_token'
         ];
 
@@ -53,7 +53,7 @@ class KeywordIdeaService
      */
     public function generateKeywordIdeas(array $keywords, ?string $pageUrl, array $locationIds, int $languageId): array
     {
-        $endpoint = "https://googleads.googleapis.com/v21/customers/{$this->config['customer_id']}:generateKeywordIdeas";
+        $endpoint = "https://googleads.googleapis.com/v21/customers/{$this->config['google_ads_customer_id']}:generateKeywordIdeas";
         
         // 요청 데이터 구성
         $requestData = [
@@ -100,7 +100,7 @@ class KeywordIdeaService
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $this->accessToken,
-            'developer-token: ' . $this->config['developer_token'],
+            'developer-token: ' . $this->config['google_ads_developer_token'],
             'Content-Type: application/json'
         ]);
 
