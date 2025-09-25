@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../google-relkwdstat-config/google_ads_config.php';
+require_once __DIR__ . '/../google_relkwdstat_config/google_relkwdstat_google_ads_config.php';
 
 class KeywordIdeaService
 {
@@ -9,7 +9,7 @@ class KeywordIdeaService
 
     public function __construct()
     {
-        $this->config = require __DIR__ . '/../google-relkwdstat-config/google_ads_config.php';
+        $this->config = require __DIR__ . '/../google_relkwdstat_config/google_relkwdstat_google_ads_config.php';
         $this->accessToken = $this->getAccessToken();
     }
 
