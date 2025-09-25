@@ -19,7 +19,7 @@ class EnvLoader
         }
 
         if ($envPath === null) {
-            $envPath = __DIR__ . '/../.env';
+            $envPath = __DIR__ . '/../../.env';
         }
 
         if (!file_exists($envPath)) {
