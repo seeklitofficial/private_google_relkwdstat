@@ -1,7 +1,7 @@
 <?php
 
 // Load .env file
-require_once __DIR__ . '/env_loader.php';
+require_once __DIR__ . '/google_relkwdstat_env_loader.php';
 EnvLoader::load();
 
 return [
