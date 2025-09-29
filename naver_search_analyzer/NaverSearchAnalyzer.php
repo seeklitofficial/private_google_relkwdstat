@@ -1,10 +1,12 @@
 <?php
 class NaverSearchAnalyzer {
     private $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+    private $mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A372 Safari/604.1';
     
-    public function analyzeSearchResults($keyword) {
-        $searchUrl = $this->buildSearchUrl($keyword);
-        $html = $this->fetchSearchPage($searchUrl);
+    public function analyzeSearchResults($keyword, $mode = 'pc') {
+        $searchUrl = $this->buildSearchUrl($keyword, $mode);
+        $ua = ($mode === 'mobile' || $mode === 'mo') ? $this->mobileUserAgent : $this->userAgent;
+        $html = $this->fetchSearchPage($searchUrl, $ua);
         
         if (!$html) {
             return ['error' => '검색 결과를 가져올 수 없습니다.'];
@@ -21,16 +23,19 @@ class NaverSearchAnalyzer {
         ];
     }
     
-    private function buildSearchUrl($keyword) {
+    private function buildSearchUrl($keyword, $mode = 'pc') {
         $encodedKeyword = urlencode($keyword);
+        if ($mode === 'mobile' || $mode === 'mo') {
+            return "https://m.search.naver.com/search.naver?where=m&sm=mtp_hty.top&ie=utf8&query={$encodedKeyword}";
+        }
         return "https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query={$encodedKeyword}";
     }
     
-    private function fetchSearchPage($url) {
+    private function fetchSearchPage($url, $userAgent = null) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, $this->userAgent);
+        curl_setopt($ch, CURLOPT_USERAGENT, $userAgent ?: $this->userAgent);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
