@@ -222,6 +222,7 @@ class NaverSearchAnalyzer {
         $title = $this->extractPowerLinkTitle($element);
         $itemCount = $this->countPowerLinkItems($element);
         $feeds = $this->extractPowerLinkFeeds($element);
+        $url = $this->extractPowerLinkUrl($element);
         
         if ($title && $itemCount > 0) {
             return [
@@ -229,11 +230,49 @@ class NaverSearchAnalyzer {
                 'type' => 'powerlink',
                 'title' => $title,
                 'item_count' => $itemCount,
+                'url' => $url,
                 'feeds' => $feeds,
                 'description' => '네이버 파워링크 광고 섹션',
                 'seo_insight' => $this->getSEOInsight('powerlink', $order),
                 'priority' => $this->getSectionPriority('powerlink', $order)
             ];
+        }
+        
+        return null;
+    }
+    
+    // 파워링크 URL 추출
+    private function extractPowerLinkUrl($element) {
+        $xpath = new DOMXPath($element->ownerDocument);
+        
+        // 실제 외부 사이트 링크 우선 찾기
+        $linkSelectors = [
+            './/a[contains(@href, "http") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "https://") and not(contains(@href, "search.naver.com"))]',
+            './/div[contains(@class, "title")]//a[@href]',
+            './/h3//a[@href]',
+            './/h4//a[@href]',
+            './/a[@href]'
+        ];
+        
+        foreach ($linkSelectors as $selector) {
+            $links = $xpath->query($selector, $element);
+            if ($links->length > 0) {
+                $url = $links->item(0)->getAttribute('href');
+                if (!empty($url) && $url !== '#' && $url !== 'javascript:void(0)') {
+                    // 절대 URL인 경우 그대로 사용
+                    if (strpos($url, 'http') === 0) {
+                        return $url;
+                    } else {
+                        // 상대 URL을 절대 URL로 변환
+                        if (strpos($url, '/') === 0) {
+                            return 'https://search.naver.com' . $url;
+                        } else {
+                            return 'https://' . $url;
+                        }
+                    }
+                }
+            }
         }
         
         return null;
@@ -313,6 +352,7 @@ class NaverSearchAnalyzer {
     private function analyzeWebResultSection($element, $order) {
         $title = $this->extractWebResultTitle($element);
         $itemCount = $this->countWebResultItems($element);
+        $url = $this->extractWebResultUrl($element);
         
         if ($title && $itemCount > 0) {
             return [
@@ -320,10 +360,52 @@ class NaverSearchAnalyzer {
                 'type' => 'web',
                 'title' => $title,
                 'item_count' => $itemCount,
+                'url' => $url,
                 'description' => '네이버 웹 검색 결과 섹션',
                 'seo_insight' => $this->getSEOInsight('web', $order),
                 'priority' => $this->getSectionPriority('web', $order)
             ];
+        }
+        
+        return null;
+    }
+    
+    // 웹 검색 결과 URL 추출
+    private function extractWebResultUrl($element) {
+        $xpath = new DOMXPath($element->ownerDocument);
+        
+        // 실제 외부 사이트 링크 우선 찾기
+        $linkSelectors = [
+            './/a[contains(@href, "http") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "https://") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "blog.naver.com")]',
+            './/a[contains(@href, "cafe.naver.com")]',
+            './/a[contains(@href, "news.naver.com")]',
+            './/a[contains(@href, "kin.naver.com")]',
+            './/h3//a[@href]',
+            './/h4//a[@href]',
+            './/div[contains(@class, "title")]//a[@href]',
+            './/a[@href]'
+        ];
+        
+        foreach ($linkSelectors as $selector) {
+            $links = $xpath->query($selector, $element);
+            if ($links->length > 0) {
+                $url = $links->item(0)->getAttribute('href');
+                if (!empty($url) && $url !== '#' && $url !== 'javascript:void(0)') {
+                    // 절대 URL인 경우 그대로 사용
+                    if (strpos($url, 'http') === 0) {
+                        return $url;
+                    } else {
+                        // 상대 URL을 절대 URL로 변환
+                        if (strpos($url, '/') === 0) {
+                            return 'https://search.naver.com' . $url;
+                        } else {
+                            return 'https://' . $url;
+                        }
+                    }
+                }
+            }
         }
         
         return null;
@@ -532,6 +614,7 @@ class NaverSearchAnalyzer {
     private function analyzeNewsSection($element, $order) {
         $title = $this->extractNewsTitle($element);
         $itemCount = $this->countNewsItems($element);
+        $url = $this->extractNewsUrl($element);
         
         if ($title && $itemCount > 0) {
             return [
@@ -539,10 +622,49 @@ class NaverSearchAnalyzer {
                 'type' => 'news',
                 'title' => $title,
                 'item_count' => $itemCount,
+                'url' => $url,
                 'description' => '네이버 뉴스 섹션',
                 'seo_insight' => $this->getSEOInsight('news', $order),
                 'priority' => $this->getSectionPriority('news', $order)
             ];
+        }
+        
+        return null;
+    }
+    
+    // 뉴스 URL 추출
+    private function extractNewsUrl($element) {
+        $xpath = new DOMXPath($element->ownerDocument);
+        
+        // 실제 외부 사이트 링크 우선 찾기
+        $linkSelectors = [
+            './/a[contains(@href, "http") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "https://") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "news.naver.com")]',
+            './/div[contains(@class, "title")]//a[@href]',
+            './/h3//a[@href]',
+            './/h4//a[@href]',
+            './/a[@href]'
+        ];
+        
+        foreach ($linkSelectors as $selector) {
+            $links = $xpath->query($selector, $element);
+            if ($links->length > 0) {
+                $url = $links->item(0)->getAttribute('href');
+                if (!empty($url) && $url !== '#' && $url !== 'javascript:void(0)') {
+                    // 절대 URL인 경우 그대로 사용
+                    if (strpos($url, 'http') === 0) {
+                        return $url;
+                    } else {
+                        // 상대 URL을 절대 URL로 변환
+                        if (strpos($url, '/') === 0) {
+                            return 'https://search.naver.com' . $url;
+                        } else {
+                            return 'https://' . $url;
+                        }
+                    }
+                }
+            }
         }
         
         return null;
@@ -1402,13 +1524,21 @@ class NaverSearchAnalyzer {
         $xpath = new DOMXPath($element->ownerDocument);
         $feeds = [];
         
-        // 피드 아이템 선택자들
+        // 더 포괄적인 피드 아이템 선택자들
         $feedSelectors = [
             './/li[contains(@class, "api_item")]',
             './/div[contains(@class, "api_item")]',
             './/div[contains(@class, "item")]',
             './/a[contains(@class, "link")]',
-            './/div[contains(@class, "list")]//div[contains(@class, "item")]'
+            './/div[contains(@class, "list")]//div[contains(@class, "item")]',
+            './/ul//li',
+            './/div[contains(@class, "list")]//li',
+            './/div[contains(@class, "api")]//li',
+            './/div[contains(@class, "api")]//div[contains(@class, "item")]',
+            './/a[@href]',
+            './/li',
+            './/div[contains(@class, "link")]',
+            './/span[contains(@class, "link")]'
         ];
         
         foreach ($feedSelectors as $selector) {
@@ -1428,14 +1558,18 @@ class NaverSearchAnalyzer {
     private function extractFeedFromItem($item) {
         $xpath = new DOMXPath($item->ownerDocument);
         
-        // 제목 추출
+        // 제목 추출 - 더 포괄적인 선택자
         $titleSelectors = [
             './/a[contains(@class, "title")]',
             './/span[contains(@class, "title")]',
             './/div[contains(@class, "title")]',
             './/h3',
             './/h4',
-            './/a'
+            './/a',
+            './/span[contains(@class, "link")]',
+            './/div[contains(@class, "link")]',
+            './/span[contains(@class, "text")]',
+            './/div[contains(@class, "text")]'
         ];
         
         $title = '';
@@ -1443,20 +1577,80 @@ class NaverSearchAnalyzer {
             $titleElements = $xpath->query($selector, $item);
             if ($titleElements->length > 0) {
                 $title = trim($titleElements->item(0)->textContent);
-                if (!empty($title) && strlen($title) < 200) {
+                if (!empty($title) && strlen($title) < 200 && strlen($title) > 2) {
                     break;
                 }
             }
         }
         
-        // URL 추출
-        $url = '';
-        $linkElements = $xpath->query('.//a[@href]', $item);
-        if ($linkElements->length > 0) {
-            $url = $linkElements->item(0)->getAttribute('href');
-            if (!empty($url) && !str_starts_with($url, 'http')) {
-                $url = 'https://search.naver.com' . $url;
+        // 제목이 없으면 전체 텍스트에서 추출
+        if (empty($title)) {
+            $title = trim($item->textContent);
+            if (strlen($title) > 200) {
+                $title = substr($title, 0, 200) . '...';
             }
+        }
+        
+        // 제목 정리 (너무 긴 텍스트 정리)
+        $title = trim($title);
+        if (strlen($title) > 100) {
+            $title = substr($title, 0, 100) . '...';
+        }
+        
+        // 제목이 여전히 없으면 스킵
+        if (empty($title) || strlen($title) < 3) {
+            return null;
+        }
+        
+        // URL 추출 - 네이버 특화 링크 찾기
+        $url = '';
+        
+        // 1. 실제 외부 사이트 링크 우선 찾기
+        $linkSelectors = [
+            './/a[contains(@href, "http") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "https://") and not(contains(@href, "search.naver.com"))]',
+            './/a[contains(@href, "blog.naver.com")]',
+            './/a[contains(@href, "cafe.naver.com")]',
+            './/a[contains(@href, "news.naver.com")]',
+            './/a[contains(@href, "kin.naver.com")]',
+            './/a[@href and not(@href="#") and not(@href="javascript:void(0)") and not(contains(@href, "search.naver.com"))]',
+            './/a[@href and not(@href="#") and not(@href="javascript:void(0)")]'
+        ];
+        
+        foreach ($linkSelectors as $selector) {
+            $linkElements = $xpath->query($selector, $item);
+            if ($linkElements->length > 0) {
+                $href = $linkElements->item(0)->getAttribute('href');
+                if (!empty($href) && $href !== '#' && $href !== 'javascript:void(0)') {
+                    // 절대 URL인 경우 그대로 사용
+                    if (strpos($href, 'http') === 0) {
+                        $url = $href;
+                    } else {
+                        // 상대 URL인 경우 절대 URL로 변환
+                        if (strpos($href, '/') === 0) {
+                            $url = 'https://search.naver.com' . $href;
+                        } else {
+                            $url = 'https://' . $href;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // 2. 네이버 내부 링크인 경우 처리
+        if (empty($url)) {
+            // 네이버 블로그/카페 링크 생성
+            $title = trim($item->textContent);
+            if (!empty($title)) {
+                $encodedTitle = urlencode($title);
+                $url = "https://search.naver.com/search.naver?where=web&sm=tab_jum&query=" . $encodedTitle;
+            }
+        }
+        
+        // 3. URL이 여전히 없으면 스킵
+        if (empty($url)) {
+            return null;
         }
         
         // 설명 추출
