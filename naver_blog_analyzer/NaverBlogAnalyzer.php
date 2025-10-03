@@ -29,6 +29,7 @@ class NbaAnalyzer{
 	public function analyze(string $keyword,array $items): array {
 		$normalized=strtolower(trim($keyword));
 		$topPosts=[]; $totalChars=0; $totalParagraphs=0; $keywordCounts=[]; $positions=[]; $titlePatterns=[]; $styleExamples=[]; $coWordCounts=[];
+		$sentencesPerPost=[]; $avgSentenceLengthChars=[]; $numbersPerPost=[]; $imagesPerPost=[]; $exclamationsPerPost=[];
 		foreach(array_slice($items,0,10) as $it){
 			$title=strip_tags($it['title']??'');
 			$desc=strip_tags($it['description']??'');
@@ -42,6 +43,12 @@ class NbaAnalyzer{
 			$tp=$this->classifyTitle($title);
 			$style=$this->inferStyle($desc);
 			$this->accumulateCoWords($desc,$coWordCounts,$normalized);
+			// Additional metrics (heuristics on title+desc only)
+			list($numSent,$avgSentLen) = $this->sentenceStats($desc);
+			$sentencesPerPost[]=$numSent; $avgSentenceLengthChars[]=$avgSentLen;
+			$numbersPerPost[] = preg_match_all('/\d+/u',$desc);
+			$imagesPerPost[] = preg_match_all('/\b(img|사진|이미지)\b/u',$desc);
+			$exclamationsPerPost[] = substr_count($title.$desc,'!');
 			$topPosts[]=['title'=>$title,'url'=>$link,'keywordCount'=>$cnt,'keywordDensityPct'=>$dens];
 			$totalChars+=$chars; $totalParagraphs+=$paras; $keywordCounts[]=$cnt; $positions=array_merge($positions,$pos); $titlePatterns[]=$tp; $styleExamples[]=$style;
 		}
@@ -55,6 +62,11 @@ class NbaAnalyzer{
 				'avgParagraphs'=>$avgParagraphs,
 				'avgKeywordDensityPct'=>$avgDensity,
 				'topTitleTypes'=>$this->topN($titlePatterns,3),
+				'avgSentencesPerPost'=>$this->avg($sentencesPerPost),
+				'avgSentenceLenChars'=>$this->avg($avgSentenceLengthChars),
+				'avgNumbersPerPost'=>$this->avg($numbersPerPost),
+				'avgImagesPerPost'=>$this->avg($imagesPerPost),
+				'avgExclamationsPerPost'=>$this->avg($exclamationsPerPost),
 			],
 			'topPosts'=>$topPosts,
 			'keywordAnalysis'=>[
@@ -68,6 +80,18 @@ class NbaAnalyzer{
 			],
 			'coKeywords'=>$this->topCoWords($coWordCounts,20)
 		];
+	}
+	private function sentenceStats(string $text): array {
+		$clean=preg_replace('/[\r\n]+/',' ',$text);
+		$parts=preg_split('/(?<=[.!?\x{3002}\x{FF01}\x{FF1F}])/u',$clean,-1,PREG_SPLIT_NO_EMPTY);
+		$parts=array_map('trim',$parts);
+		$parts=array_values(array_filter($parts,fn($s)=>$s!==''));
+		if(!$parts){return [0,0];}
+		$totalChars=0; foreach($parts as $p){$totalChars+=mb_strlen($p,'UTF-8');}
+		return [count($parts), round($totalChars/max(1,count($parts)),1)];
+	}
+	private function avg(array $arr): float {
+		if(!$arr) return 0.0; return round(array_sum($arr)/max(1,count($arr)),2);
 	}
 	private function countOccurrences(string $text,string $kw): int {
 		if($kw==='') return 0;
