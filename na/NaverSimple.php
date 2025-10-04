@@ -80,13 +80,14 @@ class Analyzer{
 		foreach(array_slice($items,0,5) as $it){
 			$title=strip_tags($it['title']??''); $desc=strip_tags($it['description']??''); $url=$it['link']??'';
 		$body=''; if($contentFetcher){ $body = trim((string)$contentFetcher($url)); }
-		// HTML에서 실제 텍스트만 추출
+		// HTML에서 실제 텍스트만 추출 (키워드 분석용)
 		$cleanBody = $this->extractTextFromHtml($body);
 		$combined = trim($title."\n\n".$desc.( $cleanBody ? "\n\n".$cleanBody : '' ));
 			$chars=mb_strlen($combined,'UTF-8'); $p=max(1,substr_count($combined,"\n\n")+1);
 			$c=$this->occurs($combined,$norm); $dens=$chars? round(($c/$chars)*100*40,2):0;
 			list($sCnt,$avgSL)=$this->sentenceStats($combined);
-			$img=$this->countImages($combined); $num=preg_match_all('/\d+/u',$combined); $exc=substr_count($combined,'!'); $hd=0; $ln=$this->countLinks($combined);
+			// 이미지와 링크는 원본 HTML에서 카운팅
+			$img=$this->countImages($body); $num=preg_match_all('/\d+/u',$combined); $exc=substr_count($combined,'!'); $hd=0; $ln=$this->countLinks($body);
 			list($firstPos,$section)=$this->firstOccurrenceInfo($combined,$norm, mb_strlen($title)+2+mb_strlen($desc));
 			list($densestSentence,$densestPct)=$this->densestSentence($combined,$norm);
 			$this->accumulateCoWords($combined,$coWordBag,$norm);
