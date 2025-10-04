@@ -79,8 +79,10 @@ class Analyzer{
 		$coWordBag=[]; $titlePatterns=[];
 		foreach(array_slice($items,0,5) as $it){
 			$title=strip_tags($it['title']??''); $desc=strip_tags($it['description']??''); $url=$it['link']??'';
-			$body=''; if($contentFetcher){ $body = trim((string)$contentFetcher($url)); }
-			$combined = trim($title."\n\n".$desc.( $body ? "\n\n".$body : '' ));
+		$body=''; if($contentFetcher){ $body = trim((string)$contentFetcher($url)); }
+		// HTML에서 실제 텍스트만 추출
+		$cleanBody = $this->extractTextFromHtml($body);
+		$combined = trim($title."\n\n".$desc.( $cleanBody ? "\n\n".$cleanBody : '' ));
 			$chars=mb_strlen($combined,'UTF-8'); $p=max(1,substr_count($combined,"\n\n")+1);
 			$c=$this->occurs($combined,$norm); $dens=$chars? round(($c/$chars)*100*40,2):0;
 			list($sCnt,$avgSL)=$this->sentenceStats($combined);
@@ -129,7 +131,7 @@ class Analyzer{
 	private function accumulateCoWords(string $text,array &$bag,string $kw): void{
 		$clean=mb_strtolower(preg_replace('/[^\p{L}\p{N}\s]/u',' ',$text),'UTF-8');
 		$tokens=preg_split('/\s+/u',$clean,-1,PREG_SPLIT_NO_EMPTY);
-		$stop=['그리고','그','이','저','는','은','이','가','을','를','에','의','와','과','too','the','a','an','of','to','in','on'];
+		$stop=['그리고','그','이','저','는','은','이','가','을','를','에','의','와','과','too','the','a','an','of','to','in','on','var','https','bw','cbox','net','pstatic','false','blog','naver','post','class','se','div','text','span','id','style','com','www','http','url','src','href','alt','title','width','height','margin','padding','color','background','font','size','px','em','rem','vh','vw','%','rgb','rgba','hex','css','js','javascript','jquery','ajax','json','xml','html','dom','api','url','link','button','input','form','table','tr','td','th','ul','ol','li','p','h1','h2','h3','h4','h5','h6','br','hr','img','video','audio','iframe','object','embed','param','meta','link','script','style','head','body','html','doctype','xmlns','lang','charset','viewport','content','name','property','rel','type','media','screen','print','all','none','block','inline','flex','grid','absolute','relative','fixed','static','top','bottom','left','right','center','middle','start','end','baseline','stretch','space','around','between','evenly','nowrap','wrap','reverse','column','row','gap','justify','align','items','self','order','grow','shrink','basis','auto','min','max','fit','fill','contain','cover','repeat','no','scroll','hidden','visible','collapse','separate','border','outline','shadow','blur','brightness','contrast','grayscale','hue','invert','opacity','saturate','sepia','transform','translate','rotate','scale','skew','matrix','perspective','origin','backface','visibility','overflow','clip','mask','filter','backdrop','isolation','mix','blend','mode','normal','multiply','screen','overlay','soft','hard','color','dodge','burn','darken','lighten','difference','exclusion','hue','saturation','luminosity','alpha','beta','gamma','delta','epsilon','zeta','eta','theta','iota','kappa','lambda','mu','nu','xi','omicron','pi','rho','sigma','tau','upsilon','phi','chi','psi','omega'];
 		foreach($tokens as $t){ if(mb_strlen($t,'UTF-8')<2) continue; if(in_array($t,$stop,true)) continue; if($t===$kw) continue; $bag[$t]=($bag[$t]??0)+1; }
 	}
 	private function topN(array $arr,int $n): array{ $counts=[]; foreach($arr as $a){ $counts[$a]=($counts[$a]??0)+1; } arsort($counts); return array_slice(array_keys($counts),0,$n); }
@@ -150,6 +152,46 @@ class Analyzer{
 		// URL 패턴 찾기
 		$urls = preg_match_all('/https?:\/\/[^\s<>"\']+/i', $text);
 		return $linkTags + $urls;
+	}
+	
+	private function extractTextFromHtml(string $html): string{
+		if(empty($html)) return '';
+		
+		// 스크립트와 스타일 태그 제거
+		$html = preg_replace('#<script[\s\S]*?</script>#iu', ' ', $html);
+		$html = preg_replace('#<style[\s\S]*?</style>#iu', ' ', $html);
+		$html = preg_replace('#<noscript[\s\S]*?</noscript>#iu', ' ', $html);
+		
+		// 특정 블로그 콘텐츠 영역만 추출 시도
+		$contentSelectors = [
+			'#<div[^>]+class="[^"]*se-main-container[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+			'#<div[^>]+class="[^"]*se_component_wrap[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+			'#<div[^>]+id="postViewArea"[^>]*>([\s\S]*?)</div>#iu',
+			'#<div[^>]+class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+			'#<div[^>]+class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)</div>#iu'
+		];
+		
+		$extractedContent = '';
+		foreach($contentSelectors as $selector) {
+			if(preg_match($selector, $html, $matches)) {
+				$extractedContent .= ' ' . $matches[1];
+			}
+		}
+		
+		// 콘텐츠 영역을 찾지 못한 경우 전체 HTML 사용
+		if(empty($extractedContent)) {
+			$extractedContent = $html;
+		}
+		
+		// HTML 태그 제거
+		$text = strip_tags($extractedContent);
+		// HTML 엔티티 디코딩
+		$text = html_entity_decode($text, ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+		// 제어 문자 제거
+		$text = preg_replace('/[\x00-\x1F\x7F]+/u',' ',$text);
+		// 연속 공백 정리
+		$text = preg_replace('/\s+/u',' ',$text);
+		return trim($text);
 	}
 	
 	private function classifyTitleExtended(string $title): string{
