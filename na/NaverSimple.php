@@ -45,7 +45,11 @@ class Client{
 		if(preg_match('#<iframe[^>]+src=\"([^\"]+PostView[^\"]*)\"#i',$html,$m) || preg_match('#<iframe[^>]+src=\"([^\"]*blog\.naver\.com[^\"]*)\"#i',$html,$m)){
 			$src=html_entity_decode($m[1], ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
 			if(str_starts_with($src,'/')){ $p=parse_url($url); $src=($p['scheme']??'https').'://'.($p['host']??'blog.naver.com').$src; }
-			$r3=$this->curl($src); if($r3['code']===200 && $r3['body']) $html=$r3['body'];
+			$r3=$this->curl($src); if($r3['code']===200 && $r3['body']) {
+				$html=$r3['body'];
+				// iframe을 따라간 경우 전체 HTML을 반환 (이미지/링크 카운팅을 위해)
+				return $html;
+			}
 		}
 		$selectors=[
 			'#<div[^>]+id=\"postViewArea\"[^>]*>([\s\S]*?)<\\/div>#iu',
@@ -64,7 +68,8 @@ class Client{
 				return trim($text);
 			}
 		}
-		return '';
+		// If no specific selectors found, return the full HTML for image/link counting
+		return $html;
 	}
 }
 class Analyzer{
@@ -79,7 +84,7 @@ class Analyzer{
 			$chars=mb_strlen($combined,'UTF-8'); $p=max(1,substr_count($combined,"\n\n")+1);
 			$c=$this->occurs($combined,$norm); $dens=$chars? round(($c/$chars)*100*40,2):0;
 			list($sCnt,$avgSL)=$this->sentenceStats($combined);
-			$img=preg_match_all('/\b(이미지|사진|img)\b/u',$combined); $num=preg_match_all('/\d+/u',$combined); $exc=substr_count($combined,'!'); $hd=0; $ln=preg_match_all('#https?://#i',$combined);
+			$img=$this->countImages($combined); $num=preg_match_all('/\d+/u',$combined); $exc=substr_count($combined,'!'); $hd=0; $ln=$this->countLinks($combined);
 			list($firstPos,$section)=$this->firstOccurrenceInfo($combined,$norm, mb_strlen($title)+2+mb_strlen($desc));
 			list($densestSentence,$densestPct)=$this->densestSentence($combined,$norm);
 			$this->accumulateCoWords($combined,$coWordBag,$norm);
@@ -89,7 +94,8 @@ class Analyzer{
 				'charCount'=>$chars,
 				'firstOccurrence'=>$firstPos,'firstOccurrenceSection'=>$section,
 				'densestSentence'=>$densestSentence,'densestSentenceDensityPct'=>$densestPct,
-				'contentPreview'=>($body? mb_substr($body,0,120,'UTF-8').'...' : '')
+				'contentPreview'=>($body? mb_substr($body,0,120,'UTF-8').'...' : ''),
+				'imageCount'=>$img,'linkCount'=>$ln
 			];
 			$totalChars+=$chars; $paras+=$p; $counts[]=$c; $sentences[]=$sCnt; $avgSentenceLens[]=$avgSL; $images[]=$img; $numbers[]=$num; $excls[]=$exc; $links[]=$ln; $headings[]=$hd;
 		}
@@ -128,6 +134,24 @@ class Analyzer{
 	}
 	private function topN(array $arr,int $n): array{ $counts=[]; foreach($arr as $a){ $counts[$a]=($counts[$a]??0)+1; } arsort($counts); return array_slice(array_keys($counts),0,$n); }
 	private function topCoWords(array $bag,int $n): array{ arsort($bag); $out=[]; foreach(array_slice($bag,0,$n,true) as $k=>$v){ $out[]=['keyword'=>$k,'count'=>$v]; } return $out; }
+	private function countImages(string $text): int{
+		// HTML img 태그 찾기
+		$imgTags = preg_match_all('/<img[^>]*>/i', $text);
+		// 이미지 URL 패턴 찾기 (jpg, jpeg, png, gif, webp 등)
+		$imgUrls = preg_match_all('/https?:\/\/[^\s<>"\']+\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?[^\s<>"\']*)?/i', $text);
+		// 이미지 관련 단어 찾기 (추가 보너스)
+		$imgWords = preg_match_all('/\b(이미지|사진|그림|img|image|photo|picture)\b/u', $text);
+		return $imgTags + $imgUrls + $imgWords;
+	}
+	
+	private function countLinks(string $text): int{
+		// HTML a 태그 찾기
+		$linkTags = preg_match_all('/<a[^>]*href[^>]*>/i', $text);
+		// URL 패턴 찾기
+		$urls = preg_match_all('/https?:\/\/[^\s<>"\']+/i', $text);
+		return $linkTags + $urls;
+	}
+	
 	private function classifyTitleExtended(string $title): string{
 		$t=trim($title);
 		if(preg_match('/\b(\d{1,2})\b/u',$t)) return '숫자형(리스트)';
