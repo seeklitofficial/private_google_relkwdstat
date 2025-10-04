@@ -97,7 +97,7 @@ class Analyzer{
 				'charCount'=>$chars,
 				'firstOccurrence'=>$firstPos,'firstOccurrenceSection'=>$section,
 				'densestSentence'=>$densestSentence,'densestSentenceDensityPct'=>$densestPct,
-				'contentPreview'=>($body? mb_substr($body,0,120,'UTF-8').'...' : ''),
+				'contentPreview'=>($cleanBody? mb_substr($cleanBody,0,120,'UTF-8').'...' : ''),
 				'imageCount'=>$img,'linkCount'=>$ln
 			];
 			$totalChars+=$chars; $paras+=$p; $counts[]=$c; $sentences[]=$sCnt; $avgSentenceLens[]=$avgSL; $images[]=$img; $numbers[]=$num; $excls[]=$exc; $links[]=$ln; $headings[]=$hd;
