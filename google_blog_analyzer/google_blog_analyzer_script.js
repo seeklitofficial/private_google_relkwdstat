@@ -1,10 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('google-search-analyzer-form');
-    const keywordInput = document.getElementById('google-search-analyzer-keyword');
-    const resultsContainer = document.getElementById('google-search-analyzer-results');
+    const form = document.getElementById('google-blog-analyzer-form');
+    const keywordInput = document.getElementById('google-blog-analyzer-keyword');
+    const resultsContainer = document.getElementById('google-blog-analyzer-results');
     const submitBtn = form.querySelector('button');
-    const btnText = submitBtn.querySelector('.google-search-analyzer-btn-text');
-    const spinner = submitBtn.querySelector('.google-search-analyzer-spinner');
+    const btnText = submitBtn.querySelector('.google-blog-analyzer-btn-text');
+    const spinner = submitBtn.querySelector('.google-blog-analyzer-spinner');
     
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         btnText.style.display = 'none';
         spinner.style.display = 'inline-flex';
-        resultsContainer.innerHTML = '<div class="google-search-analyzer-loading">구글 검색 및 분석 중...</div>';
+        resultsContainer.innerHTML = '<div class="google-blog-analyzer-loading">구글 검색 및 분석 중...</div>';
         
         try {
             const response = await fetch('/google_blog_analyzer/google_blog_analyzer_analyze.php', {
@@ -55,32 +55,32 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 요약 통계
         html += `
-            <div class="google-search-analyzer-card">
+            <div class="google-blog-analyzer-card">
                 <h3>📊 분석 요약</h3>
-                <div class="google-search-analyzer-stats">
-                    <div class="google-search-analyzer-stat">
-                        <div class="google-search-analyzer-stat-label">총 검색 결과</div>
-                        <div class="google-search-analyzer-stat-value">${summary.totalDocs}개</div>
+                <div class="google-blog-analyzer-stats">
+                    <div class="google-blog-analyzer-stat">
+                        <div class="google-blog-analyzer-stat-label">총 검색 결과</div>
+                        <div class="google-blog-analyzer-stat-value">${summary.totalDocs}개</div>
                     </div>
-                    <div class="google-search-analyzer-stat">
-                        <div class="google-search-analyzer-stat-label">평균 글자 수</div>
-                        <div class="google-search-analyzer-stat-value">${summary.avgChars.toLocaleString()}자</div>
+                    <div class="google-blog-analyzer-stat">
+                        <div class="google-blog-analyzer-stat-label">평균 글자 수</div>
+                        <div class="google-blog-analyzer-stat-value">${summary.avgChars.toLocaleString()}자</div>
                     </div>
-                    <div class="google-search-analyzer-stat">
-                        <div class="google-search-analyzer-stat-label">평균 이미지 수</div>
-                        <div class="google-search-analyzer-stat-value">${summary.avgImages}개</div>
+                    <div class="google-blog-analyzer-stat">
+                        <div class="google-blog-analyzer-stat-label">평균 이미지 수</div>
+                        <div class="google-blog-analyzer-stat-value">${summary.avgImages}개</div>
                     </div>
-                    <div class="google-search-analyzer-stat">
-                        <div class="google-search-analyzer-stat-label">평균 링크 수</div>
-                        <div class="google-search-analyzer-stat-value">${summary.avgLinks}개</div>
+                    <div class="google-blog-analyzer-stat">
+                        <div class="google-blog-analyzer-stat-label">평균 링크 수</div>
+                        <div class="google-blog-analyzer-stat-value">${summary.avgLinks}개</div>
                     </div>
-                    <div class="google-search-analyzer-stat">
-                        <div class="google-search-analyzer-stat-label">평균 숫자 수</div>
-                        <div class="google-search-analyzer-stat-value">${summary.avgNumbers}개</div>
+                    <div class="google-blog-analyzer-stat">
+                        <div class="google-blog-analyzer-stat-label">평균 숫자 수</div>
+                        <div class="google-blog-analyzer-stat-value">${summary.avgNumbers}개</div>
                     </div>
-                    <div class="google-search-analyzer-stat">
-                        <div class="google-search-analyzer-stat-label">평균 감탄부호</div>
-                        <div class="google-search-analyzer-stat-value">${summary.avgExclamations}개</div>
+                    <div class="google-blog-analyzer-stat">
+                        <div class="google-blog-analyzer-stat-label">평균 감탄부호</div>
+                        <div class="google-blog-analyzer-stat-value">${summary.avgExclamations}개</div>
                     </div>
                 </div>
             </div>
@@ -89,11 +89,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // 제목 분석
         if (titleAnalysis && Object.keys(titleAnalysis).length > 0) {
             html += `
-                <div class="google-search-analyzer-card">
+                <div class="google-blog-analyzer-card">
                     <h3>📝 제목 유형 분석</h3>
                     <div>
                         ${Object.entries(titleAnalysis).map(([type, count]) => 
-                            `<span class="google-search-analyzer-badge">${type} (${count}개)</span>`
+                            `<span class="google-blog-analyzer-badge">${type} (${count}개)</span>`
                         ).join('')}
                     </div>
                 </div>
@@ -103,11 +103,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // 공동 키워드
         if (coKeywords && coKeywords.length > 0) {
             html += `
-                <div class="google-search-analyzer-card">
+                <div class="google-blog-analyzer-card">
                     <h3>🔗 함께 사용된 키워드</h3>
                     <div>
                         ${coKeywords.slice(0, 15).map(item => 
-                            `<span class="google-search-analyzer-badge">${item.keyword} (${item.count}회)</span>`
+                            `<span class="google-blog-analyzer-badge">${item.keyword} (${item.count}회)</span>`
                         ).join('')}
                     </div>
                     <div style="margin-top: 10px; font-size: 0.9rem; color: #666;">
@@ -120,19 +120,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // 상위 검색 결과
         if (topResults && topResults.length > 0) {
             html += `
-                <div class="google-search-analyzer-card">
+                <div class="google-blog-analyzer-card">
                     <h3>🔍 상위 검색 결과</h3>
                     <div>
                         ${topResults.map(result => `
-                            <div class="google-search-analyzer-result-item">
+                            <div class="google-blog-analyzer-result-item">
                                 <a href="${result.url}" target="_blank">${escapeHtml(result.title)}</a>
-                                <div class="google-search-analyzer-result-meta">
-                                    <span class="google-search-analyzer-badge">글자수: ${result.charCount.toLocaleString()}</span>
-                                    <span class="google-search-analyzer-badge">키워드: ${result.keywordCount}회</span>
-                                    <span class="google-search-analyzer-badge">밀도: ${result.keywordDensity}%</span>
-                                    <span class="google-search-analyzer-badge">이미지: ${result.imageCount}개</span>
-                                    <span class="google-search-analyzer-badge">링크: ${result.linkCount}개</span>
-                                    <span class="google-search-analyzer-badge">${result.titleType}</span>
+                                <div class="google-blog-analyzer-result-meta">
+                                    <span class="google-blog-analyzer-badge">글자수: ${result.charCount.toLocaleString()}</span>
+                                    <span class="google-blog-analyzer-badge">키워드: ${result.keywordCount}회</span>
+                                    <span class="google-blog-analyzer-badge">밀도: ${result.keywordDensity}%</span>
+                                    <span class="google-blog-analyzer-badge">이미지: ${result.imageCount}개</span>
+                                    <span class="google-blog-analyzer-badge">링크: ${result.linkCount}개</span>
+                                    <span class="google-blog-analyzer-badge">${result.titleType}</span>
                                 </div>
                                 ${result.contentPreview ? `<div style="margin-top: 8px; color: #666; font-size: 0.9rem;">${escapeHtml(result.contentPreview)}</div>` : ''}
                             </div>
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function displayError(message) {
         resultsContainer.innerHTML = `
-            <div class="google-search-analyzer-error">
+            <div class="google-blog-analyzer-error">
                 <h3>❌ 오류 발생</h3>
                 <p>${escapeHtml(message)}</p>
             </div>
