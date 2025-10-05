@@ -280,34 +280,49 @@ class GoogleSearchAnalyzer {
     }
     
     private function extractBlogContent(string $html): string {
-        // 블로그 플랫폼별 콘텐츠 영역 추출
-        $blogSelectors = [
-            // 네이버 블로그
-            '#<div[^>]*class="[^"]*se-main-container[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*se_component_wrap[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*id="postViewArea"[^>]*>([\s\S]*?)</div>#iu',
+        // 줄글 콘텐츠를 위한 다양한 선택자
+        $contentSelectors = [
+            // 블로그 플랫폼별
+            '#<div[^>]*class="[^"]*se-main-container[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 네이버 블로그
+            '#<div[^>]*class="[^"]*se_component_wrap[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 네이버 블로그
+            '#<div[^>]*id="postViewArea"[^>]*>([\s\S]*?)</div>#iu', // 네이버 블로그
+            '#<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 티스토리
+            '#<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 티스토리
+            '#<div[^>]*class="[^"]*wrap_article[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 브런치
+            '#<div[^>]*class="[^"]*article_content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 브런치
+            '#<div[^>]*class="[^"]*postArticle-content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 미디엄
+            '#<div[^>]*class="[^"]*article-content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 미디엄
             
-            // 티스토리
-            '#<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            // 일반적인 글 콘텐츠 영역
+            '#<article[^>]*>([\s\S]*?)</article>#iu', // article 태그
+            '#<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // content 클래스
+            '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu', // post 클래스
+            '#<div[^>]*class="[^"]*entry[^"]*"[^>]*>([\s\S]*?)</div>#iu', // entry 클래스
+            '#<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)</div>#iu', // article 클래스
+            '#<div[^>]*class="[^"]*text[^"]*"[^>]*>([\s\S]*?)</div>#iu', // text 클래스
+            '#<div[^>]*class="[^"]*body[^"]*"[^>]*>([\s\S]*?)</div>#iu', // body 클래스
+            '#<div[^>]*class="[^"]*main[^"]*"[^>]*>([\s\S]*?)</div>#iu', // main 클래스
+            '#<div[^>]*class="[^"]*story[^"]*"[^>]*>([\s\S]*?)</div>#iu', // story 클래스
+            '#<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)</div>#iu', // description 클래스
             
-            // 브런치
-            '#<div[^>]*class="[^"]*wrap_article[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*article_content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            // 뉴스/기사 사이트
+            '#<div[^>]*class="[^"]*news[^"]*"[^>]*>([\s\S]*?)</div>#iu', // news 클래스
+            '#<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)</div>#iu', // article 클래스
+            '#<div[^>]*class="[^"]*story[^"]*"[^>]*>([\s\S]*?)</div>#iu', // story 클래스
+            '#<div[^>]*class="[^"]*text[^"]*"[^>]*>([\s\S]*?)</div>#iu', // text 클래스
             
-            // 미디엄
-            '#<div[^>]*class="[^"]*postArticle-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*article-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            // 위키/백과사전
+            '#<div[^>]*class="[^"]*mw-content-text[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 위키백과
+            '#<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 일반 content
             
-            // 일반적인 블로그 구조
-            '#<article[^>]*>([\s\S]*?)</article>#iu',
-            '#<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*entry[^"]*"[^>]*>([\s\S]*?)</div>#iu'
+            // 포럼/커뮤니티
+            '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu', // post 클래스
+            '#<div[^>]*class="[^"]*message[^"]*"[^>]*>([\s\S]*?)</div>#iu', // message 클래스
+            '#<div[^>]*class="[^"]*thread[^"]*"[^>]*>([\s\S]*?)</div>#iu', // thread 클래스
         ];
         
         $extractedContent = '';
-        foreach ($blogSelectors as $selector) {
+        foreach ($contentSelectors as $selector) {
             if (preg_match($selector, $html, $matches)) {
                 $extractedContent .= ' ' . $matches[1];
             }
