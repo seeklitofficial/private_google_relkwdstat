@@ -276,7 +276,18 @@ class GoogleBlogAnalyzer {
         }
         
         // 블로그 포스트 콘텐츠만 추출
-        return $this->extractBlogContent($response);
+        $extractedContent = $this->extractBlogContent($response);
+        
+        // 추출된 콘텐츠가 너무 적은 경우 추가 시도
+        if (mb_strlen($extractedContent) < 100) {
+            // 전체 HTML에서 텍스트 추출 시도
+            $fullText = $this->extractTextFromHtml($response);
+            if (mb_strlen($fullText) > mb_strlen($extractedContent)) {
+                $extractedContent = $fullText;
+            }
+        }
+        
+        return $extractedContent;
     }
     
     private function extractBlogContent(string $html): string {
@@ -319,6 +330,21 @@ class GoogleBlogAnalyzer {
             '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu', // post 클래스
             '#<div[^>]*class="[^"]*message[^"]*"[^>]*>([\s\S]*?)</div>#iu', // message 클래스
             '#<div[^>]*class="[^"]*thread[^"]*"[^>]*>([\s\S]*?)</div>#iu', // thread 클래스
+            
+            // 추가 쇼핑몰/상품 사이트
+            '#<div[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)</div>#iu', // product 클래스
+            '#<div[^>]*class="[^"]*item[^"]*"[^>]*>([\s\S]*?)</div>#iu', // item 클래스
+            '#<div[^>]*class="[^"]*detail[^"]*"[^>]*>([\s\S]*?)</div>#iu', // detail 클래스
+            '#<div[^>]*class="[^"]*info[^"]*"[^>]*>([\s\S]*?)</div>#iu', // info 클래스
+            '#<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)</div>#iu', // description 클래스
+            '#<div[^>]*class="[^"]*summary[^"]*"[^>]*>([\s\S]*?)</div>#iu', // summary 클래스
+            '#<div[^>]*class="[^"]*overview[^"]*"[^>]*>([\s\S]*?)</div>#iu', // overview 클래스
+            
+            // 도서관/공공기관 사이트
+            '#<div[^>]*class="[^"]*service[^"]*"[^>]*>([\s\S]*?)</div>#iu', // service 클래스
+            '#<div[^>]*class="[^"]*guide[^"]*"[^>]*>([\s\S]*?)</div>#iu', // guide 클래스
+            '#<div[^>]*class="[^"]*notice[^"]*"[^>]*>([\s\S]*?)</div>#iu', // notice 클래스
+            '#<div[^>]*class="[^"]*help[^"]*"[^>]*>([\s\S]*?)</div>#iu', // help 클래스
         ];
         
         $extractedContent = '';
@@ -330,8 +356,16 @@ class GoogleBlogAnalyzer {
         
         // 콘텐츠를 찾지 못한 경우 더 넓은 범위로 검색
         if (empty($extractedContent)) {
+            // main 태그 시도
+            if (preg_match('/<main[^>]*>([\s\S]*?)<\/main>/i', $html, $matches)) {
+                $extractedContent = $matches[1];
+            }
+            // section 태그 시도
+            elseif (preg_match('/<section[^>]*>([\s\S]*?)<\/section>/i', $html, $matches)) {
+                $extractedContent = $matches[1];
+            }
             // body 태그 내의 모든 텍스트 추출
-            if (preg_match('/<body[^>]*>([\s\S]*?)<\/body>/i', $html, $matches)) {
+            elseif (preg_match('/<body[^>]*>([\s\S]*?)<\/body>/i', $html, $matches)) {
                 $extractedContent = $matches[1];
             } else {
                 // body 태그도 없으면 전체 HTML 사용
@@ -446,7 +480,17 @@ class ContentAnalyzer {
             '#<div[^>]*class="[^"]*text[^"]*"[^>]*>([\s\S]*?)</div>#iu',
             '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu',
             '#<div[^>]*class="[^"]*entry[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)</div>#iu'
+            '#<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*item[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*detail[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*info[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*summary[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*service[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*guide[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*notice[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*help[^"]*"[^>]*>([\s\S]*?)</div>#iu'
         ];
         
         $extractedContent = '';
