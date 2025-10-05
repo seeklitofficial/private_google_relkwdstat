@@ -43,8 +43,8 @@ class GoogleBlogAnalyzer {
             }
         }
         
-        $this->apiKey = $_ENV['GOOGLE_CUSTOM_SEARCH_API_KEY'] ?? '';
-        $this->searchEngineId = $_ENV['GOOGLE_CUSTOM_SEARCH_ENGINE_ID'] ?? '';
+        $this->apiKey = $_ENV['BLOG_GOOGLE_CUSTOM_SEARCH_API_KEY'] ?? '';
+        $this->searchEngineId = $_ENV['BLOG_GOOGLE_CUSTOM_SEARCH_ENGINE_ID'] ?? '';
     }
     
     public function searchGoogle(string $keyword, int $count = 10): array {
