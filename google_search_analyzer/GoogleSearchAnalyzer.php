@@ -475,111 +475,53 @@ class ContentAnalyzer {
     }
     
     private function collectCoKeywords(string $content, array &$coKeywords, string $mainKeyword): void {
-        // HTML 태그 제거
-        $cleanContent = strip_tags($content);
+        // 실제 콘텐츠 영역만 추출 (제목, 본문, 섹션 등)
+        $contentSelectors = [
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // 제목들
+            'p', 'div', 'span', 'article', 'section', 'main', // 본문 영역
+            'li', 'td', 'th', // 리스트, 테이블
+            'blockquote', 'cite', 'em', 'strong', 'b', 'i' // 강조 텍스트
+        ];
+        
+        $cleanContent = '';
+        foreach ($contentSelectors as $selector) {
+            // 각 선택자에 해당하는 내용 추출
+            if (preg_match_all('/<' . $selector . '[^>]*>([^<]*)<\/' . $selector . '>/i', $content, $matches)) {
+                foreach ($matches[1] as $match) {
+                    $cleanContent .= ' ' . $match;
+                }
+            }
+        }
+        
+        // HTML 엔티티 디코딩
         $cleanContent = html_entity_decode($cleanContent, ENT_QUOTES, 'UTF-8');
         $cleanContent = preg_replace('/\s+/', ' ', $cleanContent);
         
-        // CSS와 JavaScript 코드 제거
-        $cleanContent = preg_replace('/\{[^}]*\}/', ' ', $cleanContent); // CSS 블록 제거
-        $cleanContent = preg_replace('/\([^)]*\)/', ' ', $cleanContent); // 함수 호출 제거
-        $cleanContent = preg_replace('/#[a-f0-9]{3,6}/', ' ', $cleanContent); // 색상 코드 제거
-        $cleanContent = preg_replace('/[0-9]+(px|rem|em|%|vh|vw|s|ms)/', ' ', $cleanContent); // CSS 단위 제거
-        $cleanContent = preg_replace('/[a-z]+-[a-z]+/', ' ', $cleanContent); // kebab-case 제거
-        $cleanContent = preg_replace('/[a-z]+\.[a-z]+/', ' ', $cleanContent); // dot notation 제거
-        
-        // JSON과 JavaScript 코드 제거
-        $cleanContent = preg_replace('/"[^"]*":\s*"[^"]*"/', ' ', $cleanContent); // JSON 키-값 쌍 제거
-        $cleanContent = preg_replace('/var\s+[^;]+;/', ' ', $cleanContent); // JavaScript 변수 제거
-        $cleanContent = preg_replace('/function\s+[^{]*\{[^}]*\}/', ' ', $cleanContent); // JavaScript 함수 제거
-        $cleanContent = preg_replace('/@media[^{]*\{[^}]*\}/', ' ', $cleanContent); // CSS 미디어 쿼리 제거
-        
-        // 특수 문자와 기호 제거
-        $cleanContent = preg_replace('/[{}[\]();,]/', ' ', $cleanContent); // 특수 문자 제거
-        $cleanContent = preg_replace('/[0-9]+\.[0-9]+/', ' ', $cleanContent); // 소수점 숫자 제거
-        $cleanContent = preg_replace('/[a-z]+\.[a-z]+/', ' ', $cleanContent); // 클래스명 제거
-        $cleanContent = preg_replace('/[a-z]+_[a-z]+/', ' ', $cleanContent); // 언더스코어 제거
-        
-        // 더 강력한 필터링
-        $cleanContent = preg_replace('/\.[a-z]+/', ' ', $cleanContent); // 점으로 시작하는 클래스명 제거
-        $cleanContent = preg_replace('/#[a-z]+/', ' ', $cleanContent); // 해시로 시작하는 ID 제거
-        $cleanContent = preg_replace('/@[a-z]+/', ' ', $cleanContent); // @로 시작하는 속성 제거
-        $cleanContent = preg_replace('/"[^"]*":\s*[^,}]+/', ' ', $cleanContent); // JSON 속성 제거
-        $cleanContent = preg_replace('/[a-z]+\.[a-z]+\.[a-z]+/', ' ', $cleanContent); // 중첩된 클래스명 제거
-        
         $words = preg_split('/\s+/', mb_strtolower($cleanContent));
         
-        // 확장된 불용어 리스트
+        // 실제 콘텐츠에 맞는 불용어 리스트
         $stopWords = [
             // 기본 불용어
             '그리고', '그런데', '하지만', '그러나', '또한', '또는', '그래서', '따라서', '그러므로', 
             '그런', '이런', '저런', '그', '이', '저', '것', '수', '있', '하', '되', '되다', '하다', 
             '있다', '없다', '이다', '아니다', '입니다', '합니다', '됩니다',
-            // HTML/CSS/JS 관련
-            'div', 'span', 'class', 'id', 'href', 'src', 'alt', 'title', 'style', 'script',
-            'function', 'var', 'let', 'const', 'if', 'else', 'for', 'while', 'return',
             // 일반적인 웹 용어
-            'http', 'https', 'www', 'com', 'org', 'net', 'kr', 'co', 'html', 'css', 'js',
-            'button', 'input', 'form', 'table', 'tr', 'td', 'th', 'ul', 'ol', 'li',
-            'nav', 'header', 'footer', 'main', 'section', 'article', 'aside',
+            'http', 'https', 'www', 'com', 'org', 'net', 'kr', 'co',
             // 숫자와 특수문자
             'nbsp', 'amp', 'lt', 'gt', 'quot', 'apos', 'copy', 'reg', 'trade',
-            // CSS 관련 용어들
-            'px', 'solid', 'sans', 'serif', 'monospace', 'bold', 'italic', 'underline',
-            'margin', 'padding', 'border', 'width', 'height', 'color', 'background',
-            'font', 'size', 'weight', 'family', 'line', 'text', 'align', 'center',
-            'left', 'right', 'justify', 'top', 'bottom', 'middle', 'block', 'inline',
-            'flex', 'grid', 'position', 'absolute', 'relative', 'fixed', 'static',
-            'display', 'none', 'visible', 'hidden', 'overflow', 'scroll', 'auto',
-            'z-index', 'opacity', 'transparency', 'shadow', 'blur', 'radius',
-            'transition', 'animation', 'transform', 'rotate', 'scale', 'translate',
-            'hover', 'focus', 'active', 'visited', 'link', 'target', 'before', 'after',
-            'first', 'last', 'child', 'nth', 'odd', 'even', 'not', 'only', 'screen',
-            'print', 'media', 'query', 'min-width', 'max-width', 'min-height', 'max-height',
-            'viewport', 'device', 'orientation', 'landscape', 'portrait',
-            // CSS 값들
-            '1px', '2px', '3px', '4px', '5px', '6px', '7px', '8px', '9px', '10px',
-            '0px', '12px', '14px', '16px', '18px', '20px', '24px', '32px', '40px',
-            '50px', '60px', '70px', '80px', '90px', '100px', '200px', '300px',
-            '0s', '1s', '2s', '3s', '4s', '5s', '0.1s', '0.2s', '0.3s', '0.4s', '0.5s',
-            '0.6s', '0.7s', '0.8s', '0.9s', '1.1s', '1.2s', '1.3s', '1.4s', '1.5s',
             // HTML 엔티티
-            'u0026', 'u003c', 'u003e', 'u0022', 'u0027', 'u0020', 'u00a0',
-            // 기타 기술 용어
-            'api', 'json', 'xml', 'ajax', 'dom', 'bom', 'event', 'listener',
-            'callback', 'promise', 'async', 'await', 'fetch', 'request', 'response',
-            'status', 'code', 'error', 'success', 'fail', 'complete', 'done',
-            'load', 'ready', 'change', 'click', 'submit', 'focus', 'blur',
-            'mouse', 'keyboard', 'touch', 'gesture', 'swipe', 'pinch', 'zoom'
+            'u0026', 'u003c', 'u003e', 'u0022', 'u0027', 'u0020', 'u00a0'
         ];
         
         foreach ($words as $word) {
             $word = trim($word);
             
-            // 필터링 조건
-            if (mb_strlen($word) > 2 && 
+            // 필터링 조건 (실제 콘텐츠에 맞게 간소화)
+            if (mb_strlen($word) > 1 && 
                 !in_array($word, $stopWords) && 
                 $word !== mb_strtolower($mainKeyword) &&
                 !preg_match('/^[0-9]+$/', $word) && // 순수 숫자 제외
                 !preg_match('/^[^가-힣a-zA-Z]+$/', $word) && // 한글/영문이 포함된 것만
-                !preg_match('/^[<>\/]+$/', $word) && // HTML 태그 제외
-                !preg_match('/^[&;]+$/', $word) && // HTML 엔티티 제외
-                !preg_match('/^[0-9]+px$/', $word) && // CSS 픽셀 값 제외
-                !preg_match('/^[0-9]+s$/', $word) && // CSS 시간 값 제외
-                !preg_match('/^[0-9]+\.[0-9]+s$/', $word) && // CSS 소수점 시간 값 제외
-                !preg_match('/^[0-9]+ms$/', $word) && // CSS 밀리초 값 제외
-                !preg_match('/^[0-9]+rem$/', $word) && // CSS rem 값 제외
-                !preg_match('/^[0-9]+\.[0-9]+rem$/', $word) && // CSS 소수점 rem 값 제외
-                !preg_match('/^[a-z]+-[a-z]+$/', $word) && // CSS 속성명 제외 (kebab-case)
-                !preg_match('/^[a-z]+\.[a-z]+$/', $word) && // CSS 클래스명 제외
-                !preg_match('/^#[a-f0-9]+$/', $word) && // CSS 색상 코드 제외
-                !preg_match('/^[a-z]+\([^)]*\)$/', $word) && // CSS 함수 제외
-                !preg_match('/^rgba\([^)]*\)$/', $word) && // CSS rgba 색상 제외
-                !preg_match('/^rgb\([^)]*\)$/', $word) && // CSS rgb 색상 제외
-                !preg_match('/^[a-z]+\.[a-z]+$/', $word) && // CSS 클래스명 제외
-                !preg_match('/^[0-9]+\.[0-9]+$/', $word) && // 소수점 숫자 제외
-                !preg_match('/^[a-z]+\($/', $word) && // CSS 함수 시작 제외
-                !preg_match('/^[a-z]+\)$/', $word) && // CSS 함수 끝 제외
                 mb_strlen($word) <= 20 // 너무 긴 단어 제외
             ) {
                 $coKeywords[$word] = ($coKeywords[$word] ?? 0) + 1;
