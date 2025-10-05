@@ -280,7 +280,7 @@ class GoogleSearchAnalyzer {
     }
     
     private function extractBlogContent(string $html): string {
-        // 줄글 콘텐츠를 위한 다양한 선택자
+        // 먼저 특정 콘텐츠 영역을 찾아서 추출
         $contentSelectors = [
             // 블로그 플랫폼별
             '#<div[^>]*class="[^"]*se-main-container[^"]*"[^>]*>([\s\S]*?)</div>#iu', // 네이버 블로그
@@ -328,9 +328,15 @@ class GoogleSearchAnalyzer {
             }
         }
         
-        // 콘텐츠를 찾지 못한 경우 전체 HTML 사용
+        // 콘텐츠를 찾지 못한 경우 더 넓은 범위로 검색
         if (empty($extractedContent)) {
-            $extractedContent = $html;
+            // body 태그 내의 모든 텍스트 추출
+            if (preg_match('/<body[^>]*>([\s\S]*?)<\/body>/i', $html, $matches)) {
+                $extractedContent = $matches[1];
+            } else {
+                // body 태그도 없으면 전체 HTML 사용
+                $extractedContent = $html;
+            }
         }
         
         return $extractedContent;
@@ -436,7 +442,11 @@ class ContentAnalyzer {
             '#<section[^>]*>([\s\S]*?)</section>#iu',
             '#<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
             '#<div[^>]*class="[^"]*main[^"]*"[^>]*>([\s\S]*?)</div>#iu',
-            '#<div[^>]*class="[^"]*body[^"]*"[^>]*>([\s\S]*?)</div>#iu'
+            '#<div[^>]*class="[^"]*body[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*text[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*entry[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)</div>#iu'
         ];
         
         $extractedContent = '';
@@ -446,9 +456,14 @@ class ContentAnalyzer {
             }
         }
         
-        // 콘텐츠 영역을 찾지 못한 경우 전체 HTML 사용
+        // 콘텐츠 영역을 찾지 못한 경우 body 태그 사용
         if (empty($extractedContent)) {
-            $extractedContent = $html;
+            if (preg_match('/<body[^>]*>([\s\S]*?)<\/body>/i', $html, $matches)) {
+                $extractedContent = $matches[1];
+            } else {
+                // body 태그도 없으면 전체 HTML 사용
+                $extractedContent = $html;
+            }
         }
         
         // HTML 태그 제거
