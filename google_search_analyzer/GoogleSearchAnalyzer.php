@@ -361,12 +361,47 @@ class ContentAnalyzer {
     }
     
     private function extractTextFromHtml(string $html): string {
+        if (empty($html)) return '';
+        
+        // 스크립트와 스타일 태그 제거
+        $html = preg_replace('#<script[\s\S]*?</script>#iu', ' ', $html);
+        $html = preg_replace('#<style[\s\S]*?</style>#iu', ' ', $html);
+        $html = preg_replace('#<noscript[\s\S]*?</noscript>#iu', ' ', $html);
+        $html = preg_replace('#<nav[\s\S]*?</nav>#iu', ' ', $html);
+        $html = preg_replace('#<header[\s\S]*?</header>#iu', ' ', $html);
+        $html = preg_replace('#<footer[\s\S]*?</footer>#iu', ' ', $html);
+        
+        // 특정 콘텐츠 영역만 추출 시도
+        $contentSelectors = [
+            '#<main[^>]*>([\s\S]*?)</main>#iu',
+            '#<article[^>]*>([\s\S]*?)</article>#iu',
+            '#<section[^>]*>([\s\S]*?)</section>#iu',
+            '#<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*main[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*body[^"]*"[^>]*>([\s\S]*?)</div>#iu'
+        ];
+        
+        $extractedContent = '';
+        foreach ($contentSelectors as $selector) {
+            if (preg_match($selector, $html, $matches)) {
+                $extractedContent .= ' ' . $matches[1];
+            }
+        }
+        
+        // 콘텐츠 영역을 찾지 못한 경우 전체 HTML 사용
+        if (empty($extractedContent)) {
+            $extractedContent = $html;
+        }
+        
         // HTML 태그 제거
-        $text = strip_tags($html);
+        $text = strip_tags($extractedContent);
         // HTML 엔티티 디코딩
-        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        $text = html_entity_decode($text, ENT_QUOTES|ENT_SUBSTITUTE, 'UTF-8');
+        // 제어 문자 제거
+        $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $text);
         // 연속 공백 정리
         $text = preg_replace('/\s+/', ' ', $text);
+        
         return trim($text);
     }
     
@@ -391,12 +426,39 @@ class ContentAnalyzer {
     private function classifyTitle(string $title): string {
         $title = mb_strtolower($title);
         
-        if (strpos($title, '방법') !== false || strpos($title, '하는법') !== false) return '방법형';
-        if (strpos($title, '후기') !== false || strpos($title, '리뷰') !== false) return '후기형';
-        if (strpos($title, '비교') !== false || strpos($title, 'vs') !== false) return '비교형';
-        if (strpos($title, '추천') !== false) return '추천형';
-        if (strpos($title, '가격') !== false || strpos($title, '비용') !== false) return '가격형';
-        if (strpos($title, '?') !== false) return '질문형';
+        // 방법/가이드형
+        if (strpos($title, '방법') !== false || strpos($title, '하는법') !== false || 
+            strpos($title, '가이드') !== false || strpos($title, '팁') !== false) return '방법형';
+        
+        // 후기/리뷰형
+        if (strpos($title, '후기') !== false || strpos($title, '리뷰') !== false || 
+            strpos($title, '경험') !== false || strpos($title, '사용') !== false) return '후기형';
+        
+        // 비교형
+        if (strpos($title, '비교') !== false || strpos($title, 'vs') !== false || 
+            strpos($title, '차이') !== false || strpos($title, '대비') !== false) return '비교형';
+        
+        // 추천형
+        if (strpos($title, '추천') !== false || strpos($title, '베스트') !== false || 
+            strpos($title, '인기') !== false || strpos($title, '좋은') !== false) return '추천형';
+        
+        // 가격형
+        if (strpos($title, '가격') !== false || strpos($title, '비용') !== false || 
+            strpos($title, '요금') !== false || strpos($title, '돈') !== false) return '가격형';
+        
+        // 질문형
+        if (strpos($title, '?') !== false || strpos($title, '어떻게') !== false || 
+            strpos($title, '무엇') !== false || strpos($title, '왜') !== false) return '질문형';
+        
+        // 서비스형
+        if (strpos($title, '서비스') !== false || strpos($title, '사이트') !== false || 
+            strpos($title, '앱') !== false || strpos($title, '프로그램') !== false) return '서비스형';
+        
+        // 이벤트형
+        if (strpos($title, '이벤트') !== false || strpos($title, '행사') !== false || 
+            strpos($title, '캘린더') !== false || strpos($title, '일정') !== false) return '이벤트형';
+        
+        // 숫자형
         if (preg_match('/\d+/', $title)) return '숫자형';
         
         return '일반형';
@@ -413,12 +475,42 @@ class ContentAnalyzer {
     }
     
     private function collectCoKeywords(string $content, array &$coKeywords, string $mainKeyword): void {
-        $words = preg_split('/\s+/', mb_strtolower($content));
-        $stopWords = ['그리고', '그런데', '하지만', '그러나', '또한', '또는', '그래서', '따라서', '그러므로', '그런', '이런', '저런', '그', '이', '저', '것', '수', '있', '하', '되', '되다', '하다', '있다', '없다', '이다', '아니다', '입니다', '입니다', '합니다', '됩니다', '됩니다'];
+        // HTML 태그 제거
+        $cleanContent = strip_tags($content);
+        $cleanContent = html_entity_decode($cleanContent, ENT_QUOTES, 'UTF-8');
+        $cleanContent = preg_replace('/\s+/', ' ', $cleanContent);
+        
+        $words = preg_split('/\s+/', mb_strtolower($cleanContent));
+        
+        // 확장된 불용어 리스트
+        $stopWords = [
+            // 기본 불용어
+            '그리고', '그런데', '하지만', '그러나', '또한', '또는', '그래서', '따라서', '그러므로', 
+            '그런', '이런', '저런', '그', '이', '저', '것', '수', '있', '하', '되', '되다', '하다', 
+            '있다', '없다', '이다', '아니다', '입니다', '합니다', '됩니다',
+            // HTML/CSS/JS 관련
+            'div', 'span', 'class', 'id', 'href', 'src', 'alt', 'title', 'style', 'script',
+            'function', 'var', 'let', 'const', 'if', 'else', 'for', 'while', 'return',
+            // 일반적인 웹 용어
+            'http', 'https', 'www', 'com', 'org', 'net', 'kr', 'co', 'html', 'css', 'js',
+            'button', 'input', 'form', 'table', 'tr', 'td', 'th', 'ul', 'ol', 'li',
+            'nav', 'header', 'footer', 'main', 'section', 'article', 'aside',
+            // 숫자와 특수문자
+            'nbsp', 'amp', 'lt', 'gt', 'quot', 'apos', 'copy', 'reg', 'trade'
+        ];
         
         foreach ($words as $word) {
             $word = trim($word);
-            if (mb_strlen($word) > 1 && !in_array($word, $stopWords) && $word !== mb_strtolower($mainKeyword)) {
+            
+            // 필터링 조건
+            if (mb_strlen($word) > 1 && 
+                !in_array($word, $stopWords) && 
+                $word !== mb_strtolower($mainKeyword) &&
+                !preg_match('/^[0-9]+$/', $word) && // 순수 숫자 제외
+                !preg_match('/^[^가-힣a-zA-Z]+$/', $word) && // 한글/영문이 포함된 것만
+                !preg_match('/^[<>\/]+$/', $word) && // HTML 태그 제외
+                !preg_match('/^[&;]+$/', $word) // HTML 엔티티 제외
+            ) {
                 $coKeywords[$word] = ($coKeywords[$word] ?? 0) + 1;
             }
         }
