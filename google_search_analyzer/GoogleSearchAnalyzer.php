@@ -2,23 +2,81 @@
 namespace GSA;
 
 class GoogleSearchAnalyzer {
+    private $apiKey;
+    private $searchEngineId;
     private $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
     
+    public function __construct() {
+        $this->loadEnv();
+    }
+    
+    private function loadEnv() {
+        // 여러 경로 시도
+        $possiblePaths = [
+            __DIR__ . '/../../.env',
+            __DIR__ . '/../.env',
+            dirname(__DIR__, 2) . '/.env',
+            dirname(__DIR__) . '/.env'
+        ];
+        
+        $envFile = null;
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                $envFile = $path;
+                break;
+            }
+        }
+        
+        if ($envFile && file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            
+            foreach ($lines as $line) {
+                if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
+                    list($key, $value) = explode('=', $line, 2);
+                    $key = trim($key);
+                    $value = trim($value);
+                    $_ENV[$key] = $value;
+                    if (function_exists('putenv')) {
+                        putenv("$key=$value");
+                    }
+                }
+            }
+        }
+        
+        $this->apiKey = $_ENV['GOOGLE_CUSTOM_SEARCH_API_KEY'] ?? '';
+        $this->searchEngineId = $_ENV['GOOGLE_CUSTOM_SEARCH_ENGINE_ID'] ?? '';
+    }
+    
     public function searchGoogle(string $keyword, int $count = 10): array {
-        $searchUrl = "https://www.google.com/search?q=" . urlencode($keyword) . "&num=" . $count;
+        // Google Custom Search API 사용
+        if (!empty($this->apiKey) && !empty($this->searchEngineId)) {
+            return $this->searchWithCustomAPI($keyword, $count);
+        }
+        
+        // API 키가 없으면 시뮬레이션 데이터 사용
+        return $this->getSimulationData($keyword);
+    }
+    
+    private function searchWithCustomAPI(string $keyword, int $count): array {
+        $apiUrl = "https://www.googleapis.com/customsearch/v1";
+        $params = [
+            'key' => $this->apiKey,
+            'cx' => $this->searchEngineId,
+            'q' => $keyword,
+            'num' => min($count, 10), // API 최대 10개
+            'hl' => 'ko',
+            'lr' => 'lang_ko'
+        ];
+        
+        $url = $apiUrl . '?' . http_build_query($params);
         
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL => $searchUrl,
+            CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_USERAGENT => $this->userAgent,
             CURLOPT_HTTPHEADER => [
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language: ko-KR,ko;q=0.9,en;q=0.8',
-                'Accept-Encoding: gzip, deflate, br',
-                'Connection: keep-alive',
-                'Upgrade-Insecure-Requests: 1'
+                'Accept: application/json',
+                'User-Agent: GoogleSearchAnalyzer/1.0'
             ],
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_TIMEOUT => 30
@@ -29,10 +87,33 @@ class GoogleSearchAnalyzer {
         curl_close($ch);
         
         if ($httpCode !== 200 || !$response) {
-            return ['error' => '구글 검색 실패'];
+            return ['error' => 'Google Custom Search API 요청 실패'];
         }
         
-        return $this->parseGoogleResults($response, $keyword);
+        $data = json_decode($response, true);
+        
+        if (isset($data['error'])) {
+            return ['error' => 'API 오류: ' . ($data['error']['message'] ?? '알 수 없는 오류')];
+        }
+        
+        return $this->parseCustomSearchResults($data);
+    }
+    
+    private function parseCustomSearchResults(array $data): array {
+        $results = [];
+        
+        if (isset($data['items']) && is_array($data['items'])) {
+            foreach ($data['items'] as $item) {
+                $results[] = [
+                    'title' => $item['title'] ?? '',
+                    'url' => $item['link'] ?? '',
+                    'snippet' => $item['snippet'] ?? '',
+                    'displayLink' => $item['displayLink'] ?? ''
+                ];
+            }
+        }
+        
+        return ['items' => $results];
     }
     
     private function parseGoogleResults(string $html, string $keyword): array {
