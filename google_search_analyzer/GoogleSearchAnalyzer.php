@@ -62,7 +62,7 @@ class GoogleSearchAnalyzer {
         $params = [
             'key' => $this->apiKey,
             'cx' => $this->searchEngineId,
-            'q' => $keyword,
+            'q' => $keyword, // 기본 키워드로 검색
             'num' => min($count, 10), // API 최대 10개
             'hl' => 'ko',
             'lr' => 'lang_ko'
@@ -275,7 +275,50 @@ class GoogleSearchAnalyzer {
             return '';
         }
         
-        return $response;
+        // 블로그 포스트 콘텐츠만 추출
+        return $this->extractBlogContent($response);
+    }
+    
+    private function extractBlogContent(string $html): string {
+        // 블로그 플랫폼별 콘텐츠 영역 추출
+        $blogSelectors = [
+            // 네이버 블로그
+            '#<div[^>]*class="[^"]*se-main-container[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*se_component_wrap[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*id="postViewArea"[^>]*>([\s\S]*?)</div>#iu',
+            
+            // 티스토리
+            '#<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            
+            // 브런치
+            '#<div[^>]*class="[^"]*wrap_article[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*article_content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            
+            // 미디엄
+            '#<div[^>]*class="[^"]*postArticle-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*article-content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            
+            // 일반적인 블로그 구조
+            '#<article[^>]*>([\s\S]*?)</article>#iu',
+            '#<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)</div>#iu',
+            '#<div[^>]*class="[^"]*entry[^"]*"[^>]*>([\s\S]*?)</div>#iu'
+        ];
+        
+        $extractedContent = '';
+        foreach ($blogSelectors as $selector) {
+            if (preg_match($selector, $html, $matches)) {
+                $extractedContent .= ' ' . $matches[1];
+            }
+        }
+        
+        // 콘텐츠를 찾지 못한 경우 전체 HTML 사용
+        if (empty($extractedContent)) {
+            $extractedContent = $html;
+        }
+        
+        return $extractedContent;
     }
     
     public function analyzeResults(string $keyword, array $results): array {
